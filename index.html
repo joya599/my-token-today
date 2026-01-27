@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>本丸近侍日历 - GitHub云同步版</title>
+    <style>
+        :root {
+            --primary-red: #d32f2f;
+            --paper-bg: #fcfaf2;
+            --ink-black: #2c3e50;
+            --gold: #fca311;
+        }
+
+        body {
+            font-family: "楷体", "STKaiti", serif;
+            background-color: var(--paper-bg);
+            margin: 0; padding: 0;
+            color: var(--ink-black);
+            scroll-behavior: smooth;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- 抽签区 --- */
+        .draw-section {
+            height: 100vh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: radial-gradient(circle, #fffaf0 0%, #fcfaf2 100%);
+            position: relative; text-align: center; padding: 0 20px; box-sizing: border-box;
+        }
+
+        #lotto-box {
+            width: 140px; height: 180px;
+            background: #8d6e63; border: 5px solid var(--ink-black);
+            border-radius: 10px 10px 60px 60px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 2rem;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .shaking { animation: shake 0.15s infinite; }
+        @keyframes shake {
+            0% { transform: rotate(0); }
+            25% { transform: rotate(-8deg) translate(-3px, -3px); }
+            75% { transform: rotate(8deg) translate(3px, -3px); }
+        }
+
+        #result-display {
+            font-size: 2rem; color: var(--primary-red);
+            font-weight: bold; margin: 15px 0; min-height: 1.2em;
+        }
+
+        button#drawBtn {
+            padding: 15px 40px; font-size: 1.5rem;
+            background: var(--primary-red); color: white;
+            border: none; border-radius: 60px; cursor: pointer;
+            box-shadow: 0 6px #9a0007; transition: 0.1s;
+        }
+        button#drawBtn:active { transform: translateY(4px); box-shadow: 0 2px #9a0007; }
+
+        /* --- 管理区 --- */
+        .manage-section {
+            min-height: 100vh; padding: 30px 15px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            background: white; border-top: 2px solid var(--ink-black);
+        }
+
+        @media (max-width: 768px) {
+            .manage-section { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            border: 2px solid #efebe9; border-radius: 15px; padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        /* 同步控件样式 */
+        .sync-panel {
+            background: #f4f4f4; border: 2px dashed #ccc;
+            margin-bottom: 20px; text-align: center;
+            grid-column: 1 / -1;
+        }
+        .sync-input {
+            width: 90%; max-width: 400px; padding: 10px; margin: 5px 0;
+            border: 1px solid #ddd; border-radius: 5px; font-family: sans-serif;
+        }
+
+        /* 日历样式 */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .calendar-day { 
+            border: 1px solid #f5f5f5; padding: 4px; min-height: 50px; 
+            font-size: 0.75rem; display: flex; flex-direction: column; align-items: center;
+        }
+        .calendar-header { font-weight: bold; padding: 5px; background: #fafafa; text-align: center; font-size: 0.8rem; }
+        .has-result { background-color: #fffde7; }
+        .attendant-name { color: var(--primary-red); font-weight: bold; font-size: 0.65rem; margin-top: 2px; text-align: center; word-break: break-all; }
+
+        /* 名单样式 */
+        details { margin-bottom: 10px; border: 1px solid #eee; border-radius: 5px; }
+        summary { padding: 12px; background: #fdfdfd; cursor: pointer; font-weight: bold; }
+        .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 8px; padding: 10px; }
+        label { display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; }
+        input[type="checkbox"] { width: 18px; height: 18px; margin-right: 6px; }
+
+        h2 { border-left: 5px solid var(--primary-red); padding-left: 12px; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+<div class="draw-section">
+    <h1 style="font-size: 2.2rem; margin: 0;">本丸近侍抽选</h1>
+    <div id="lotto-box">签筒</div>
+    <div id="result-display">准备唤起……</div>
+    <button id="drawBtn">起手摇签</button>
+    <div style="margin-top: 20px; color: #aaa; font-size: 0.9rem;">▽ 向下滚动同步云端 ▽</div>
+</div>
+
+<div class="manage-section">
+
+    <div class="panel">
+        <h2>出阵名单</h2>
+        <div id="nameContainer"></div>
+    </div>
+
+    <div class="panel">
+        <h2 id="calendarTitle">史书记录</h2>
+        <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+	
+    <div class="panel sync-panel">
+        <h2>🐙 GitHub Gist 云同步</h2>
+        <input type="password" id="gistToken" class="sync-input" placeholder="粘贴你的 GitHub Token (classic)">
+        <input type="text" id="gistId" class="sync-input" placeholder="粘贴你的 Gist ID">
+        <div style="margin-top: 10px;">
+            <button onclick="syncToGist()" style="padding: 10px 20px; background: #24292e; color:white; border:none; border-radius:5px; cursor:pointer;">保存到云端</button>
+            <button onclick="loadFromGist()" style="padding: 10px 20px; background: #28a745; color:white; border:none; border-radius:5px; margin-left:10px; cursor:pointer;">从云端拉取</button>
+        </div>
+        <p style="font-size: 0.7rem; color: #888; margin-top: 8px;">Token 和 ID 将仅保存在此浏览器的本地缓存中。</p>
+    </div>
+</div>
+
+<script>
+    const data = {
+        "短刀": ["今劍", "平野藤四郎", "厚藤四郎", "後藤藤四郎", "信濃藤四郎", "前田藤四郎", "秋田藤四郎", "博多藤四郎", "乱藤四郎", "五虎退", "藥研藤四郎", "包丁藤四郎", "愛染国俊", "太鼓鐘貞宗", "小夜左文字", "不動行光", "毛利藤四郎", "謙信景光", "日向正宗", "北谷菜切", "太閤左文字", "京極正宗", "九鬼正宗", "俱利伽羅江"],
+        "脇差": ["笑面青江", "鯰尾藤四郎", "骨喰藤四郎", "物吉貞宗", "堀川国広", "浦島虎徹", "篭手切江", "肥前忠広", "治金丸", "泛塵", "火車切"],
+        "打刀": ["鳴狐", "千子村正", "亀甲貞宗", "宗三左文字", "加州清光", "大和守安定", "歌仙兼定", "和泉守兼定", "陸奥守吉行", "山姥切国広", "蜂須賀虎徹", "長曽祢虎徹", "大俱利伽羅", "壓切長谷部", "同田貫正国", "南泉一文字", "山姥切長義", "豊前江", "南海太郎朝尊", "桑名江", "水心子正秀", "源清麿", "松井江", "地藏行平", "五月雨江", "村雲江", "稻葉江", "石田正宗", "孫六兼元", "後家兼光", "富田江", "大慶直胤", "安宅切", "二筋樋貞宗"],
+        "太刀": ["童子切安綱 剥落", "三日月宗近", "小狐丸", "大典太光世", "騷速之劍", "数珠丸恒次", "鬼丸国綱", "一期一振", "大包平", "鶯丸", "明石国行", "燭台切光忠", "大般若長光", "小龍景光", "江雪左文字", "山伏国広", "髭切", "膝丸", "獅子王", "小烏丸", "拔丸", "小豆長光", "千代金丸", "山鳥毛", "古今傳授之太刀", "日光一文字", "一文字則宗", "姬鶴一文字", "福島光忠", "笹貫", "八丁念佛", "実休光忠", "雲生", "道誉一文字", "雲次", "面影", "古備前信房", "三郎国宗"],
+        "大太刀": ["石切丸", "螢丸", "太郎太刀", "次郎太刀", "祢祢切丸"],
+        "薙刀": ["岩融", "巴形薙刀", "靜形薙刀"],
+        "枪": ["蜻蛉切", "日本号", "御手杵", "大千鳥十文字槍", "人間無骨"],
+        "剑": ["白山吉光", "七星劍", "丙子椒林劍"]
+    };
+
+    const STORAGE_CHECK_KEY = "touken_checked_v1";
+    const STORAGE_HISTORY_KEY = "touken_history_v1";
+    const STORAGE_GIST_TOKEN = "touken_gist_token";
+    const STORAGE_GIST_ID = "touken_gist_id";
+
+    let historyData = JSON.parse(localStorage.getItem(STORAGE_HISTORY_KEY)) || {};
+    let savedChecked = JSON.parse(localStorage.getItem(STORAGE_CHECK_KEY)) || null;
+
+    // 初始化界面
+    document.getElementById('gistToken').value = localStorage.getItem(STORAGE_GIST_TOKEN) || "";
+    document.getElementById('gistId').value = localStorage.getItem(STORAGE_GIST_ID) || "";
+
+    // 1. 初始化名单
+    const nameContainer = document.getElementById('nameContainer');
+    for (let type in data) {
+        const det = document.createElement('details');
+        const sum = document.createElement('summary');
+        sum.textContent = type;
+        const grid = document.createElement('div');
+        grid.className = 'name-grid';
+        data[type].forEach(name => {
+            const isChecked = savedChecked ? savedChecked.includes(name) : true;
+            grid.innerHTML += `<label><input type="checkbox" class="name-cb" value="${name}" ${isChecked ? 'checked' : ''} onchange="saveSelection()"> ${name}</label>`;
+        });
+        det.appendChild(sum); det.appendChild(grid);
+        nameContainer.appendChild(det);
+    }
+
+    function saveSelection() {
+        const checked = Array.from(document.querySelectorAll('.name-cb:checked')).map(cb => cb.value);
+        localStorage.setItem(STORAGE_CHECK_KEY, JSON.stringify(checked));
+    }
+
+    // 2. 日历系统
+    function renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = "";
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        ['日','一','二','三','四','五','六'].forEach(d => grid.innerHTML += `<div class="calendar-header">${d}</div>`);
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dateKey = `${year}-${month+1}-${i}`;
+            const winner = historyData[dateKey];
+            grid.innerHTML += `<div class="calendar-day ${winner ? 'has-result' : ''}"><b>${i}</b>${winner ? `<span class="attendant-name">${winner}</span>` : ""}</div>`;
+        }
+    }
+
+    // 3. 抽签逻辑
+    const lottoBox = document.getElementById('lotto-box');
+    const resultDisplay = document.getElementById('result-display');
+    const drawBtn = document.getElementById('drawBtn');
+
+    drawBtn.onclick = function() {
+        const pool = Array.from(document.querySelectorAll('.name-cb:checked')).map(cb => cb.value);
+        if (pool.length === 0) return alert("名单为空！");
+        drawBtn.disabled = true;
+        resultDisplay.innerText = "正在感应...";
+        lottoBox.classList.add('shaking');
+        setTimeout(() => {
+            lottoBox.classList.remove('shaking');
+            const winner = pool[Math.floor(Math.random() * pool.length)];
+            resultDisplay.innerText = "今日近侍：" + winner;
+            const d = new Date();
+            const dateKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+            historyData[dateKey] = winner;
+            localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(historyData));
+            renderCalendar();
+            drawBtn.disabled = false;
+        }, 1200);
+    };
+
+    // 4. GitHub Sync 核心逻辑
+    async function syncToGist() {
+        const token = document.getElementById('gistToken').value;
+        const id = document.getElementById('gistId').value;
+        if(!token || !id) return alert("请先填写 Token 和 Gist ID");
+        
+        localStorage.setItem(STORAGE_GIST_TOKEN, token);
+        localStorage.setItem(STORAGE_GIST_ID, id);
+
+        const payload = {
+            checked: localStorage.getItem(STORAGE_CHECK_KEY),
+            history: localStorage.getItem(STORAGE_HISTORY_KEY),
+            syncTime: new Date().toLocaleString()
+        };
+
+        try {
+            const res = await fetch(`https://api.github.com/gists/${id}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: { "touken_data.json": { content: JSON.stringify(payload) } } })
+            });
+            if(res.ok) alert("🎉 已保存至云端！");
+            else alert("同步失败，请检查 Token 权限或 ID 是否正确");
+        } catch(e) { alert("网络请求出错"); }
+    }
+
+    async function loadFromGist() {
+        const token = document.getElementById('gistToken').value;
+        const id = document.getElementById('gistId').value;
+        if(!token || !id) return alert("请先填写 Token 和 Gist ID");
+
+        localStorage.setItem(STORAGE_GIST_TOKEN, token);
+        localStorage.setItem(STORAGE_GIST_ID, id);
+
+        try {
+            const res = await fetch(`https://api.github.com/gists/${id}`, {
+                headers: { 'Authorization': `token ${token}` }
+            });
+            if(res.ok) {
+                const gist = await res.json();
+                const content = JSON.parse(gist.files["touken_data.json"].content);
+                localStorage.setItem(STORAGE_CHECK_KEY, content.checked);
+                localStorage.setItem(STORAGE_HISTORY_KEY, content.history);
+                alert("✅ 拉取成功，即将刷新页面...");
+                location.reload();
+            } else { alert("拉取失败，请检查设置"); }
+        } catch(e) { alert("网络请求出错"); }
+    }
+
+    renderCalendar();
+</script>
+
+</body>
+</html>
