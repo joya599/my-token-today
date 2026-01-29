@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>本丸近侍日历 - 2026最终版</title>
+    <title>本丸近侍日历</title>
     <style>
         :root {
             --primary-red: #d32f2f;
@@ -11,7 +11,6 @@
             --ink-black: #2c3e50;
         }
 
-        /* 全局楷体 */
         body, button, input, select, summary {
             font-family: "楷体", "STKaiti", "BiauKai", serif;
         }
@@ -56,7 +55,7 @@
             transition: 0.3s;
         }
 
-        /* --- 近侍档案卡片 (弹窗) --- */
+        /* --- 弹窗 --- */
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.6); 
@@ -66,11 +65,8 @@
 
         #result-card {
             width: 85%; max-width: 400px;
-            background: #fff;
-            border-radius: 30px;
-            padding: 50px 35px; /* 更大的边距 */
-            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
-            text-align: center;
+            background: #fff; border-radius: 30px;
+            padding: 50px 35px; text-align: center;
             box-sizing: border-box;
             animation: cardPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
@@ -80,28 +76,11 @@
             to { transform: scale(1); opacity: 1; }
         }
 
-        #card-name {
-            font-size: 2.5rem; font-weight: bold; color: white;
-            margin-bottom: 30px; 
-            text-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-        }
+        #card-name { font-size: 2.5rem; font-weight: bold; color: white; margin-bottom: 30px; text-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
+        #card-portrait { width: 100%; max-height: 380px; object-fit: contain; margin-bottom: 30px; }
+        .mood-btn { background: rgba(255,255,255,0.95); border: none; padding: 15px 30px; border-radius: 50px; cursor: pointer; font-size: 1.2rem; font-weight: bold; }
 
-        #card-portrait {
-            width: 100%; max-height: 380px;
-            object-fit: contain;
-            margin-bottom: 30px;
-            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.2));
-        }
-
-        .mood-btn {
-            background: rgba(255,255,255,0.95);
-            border: none; padding: 15px 30px;
-            border-radius: 50px; cursor: pointer;
-            font-size: 1.2rem; font-weight: bold;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        /* --- 布局与日历 --- */
+        /* --- 布局 --- */
         .manage-section { padding: 40px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; background: white; border-top: 2px solid var(--ink-black); }
         @media (max-width: 768px) { .manage-section { grid-template-columns: 1fr; } }
         .panel { border: 2px solid #efebe9; border-radius: 15px; padding: 20px; }
@@ -113,8 +92,8 @@
         .collection-item.unlocked { color: white; font-weight: bold; border: none; }
         .sakura { position: fixed; top: -20px; z-index: 2000; pointer-events: none; animation: fall linear forwards; }
         @keyframes fall { to { transform: translateY(110vh) rotate(360deg); } }
-        summary { cursor: pointer; padding: 10px; font-weight: bold; background: #fdfdfd; }
         .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; padding: 15px; }
+        summary { cursor: pointer; padding: 10px; font-weight: bold; background: #fdfdfd; }
     </style>
 </head>
 <body>
@@ -153,8 +132,6 @@
 
 <script>
     const imgHost = "portraits/";
-    
-    // 更新后的刀剑名单（已清理数字）
     const data = {
         "短刀": ["今劍", "平野藤四郎", "厚藤四郎", "後藤藤四郎", "信濃藤四郎", "前田藤四郎", "秋田藤四郎", "博多藤四郎", "乱藤四郎", "五虎退", "藥研藤四郎", "包丁藤四郎", "愛染国俊", "太鼓鐘貞宗", "小夜左文字", "不動行光", "毛利藤四郎", "謙信景光", "日向正宗", "北谷菜切", "太閤左文字", "京極正宗", "九鬼正宗", "俱利伽羅江"],
         "脇差": ["笑面青江", "鯰尾藤四郎", "骨喰藤四郎", "物吉貞宗", "堀川国广", "浦島虎徹", "篭手切江", "肥前忠広", "治金丸", "泛塵", "火車切"],
@@ -166,60 +143,42 @@
         "剑": ["白山吉光", "七星劍", "丙子椒林劍"]
     };
 
-    // 颜色配置（保持原有或默认）
-const COLORS = {
-        // 三池 / 青江 / 粟田口
+    const COLORS = {
         "三日月宗近": "#274b85", "小狐丸": "#d6b214", "石切丸": "#789658", "岩融": "#74288a", "今劍": "#e94c5f",
         "大典太光世": "#6b7386", "騷速之劍": "#f6ea86", "数珠丸恒次": "#474398", "笑面青江": "#61816a",
         "鬼丸国綱": "#27314c", "鳴狐": "#fff3c1", "一期一振": "#72b6b5", "鯰尾藤四郎": "#5e3766",
         "骨喰藤四郎": "#b6adbe", "平野藤四郎": "#7c6659", "厚藤四郎": "#b9b1af", "後藤藤四郎": "#a87059",
         "信濃藤四郎": "#ab1f2a", "前田藤四郎": "#a99477", "秋田藤四郎": "#ef9499", "博多藤四郎": "#ca661b",
         "乱藤四郎": "#ecba99", "五虎退": "#e8e0cd", "藥研藤四郎": "#8e6881", "包丁藤四郎": "#b5948f",
-        "毛利藤四郎": "#a7c57f", "白山吉光": "#9cbfdf",
-        
-        // 古備前 / 耒 / 左文字
-        "大包平": "#742b36", "鶯丸": "#748457", "八丁念佛": "#29479d", "古备前信房": "#BF7F1F",
-        "明石国行": "#393a3c", "螢丸": "#a9c463", "愛染国俊": "#db4135", "面影": "#BB94C0",
-        
-        // 村正 / 貞宗 / 長船
-        "千子村正": "#e3b6d3", "蜻蛉切": "#95397a", "物吉貞宗": "#e7a58b", "太鼓鐘貞宗": "#2967b0",
-        "亀甲貞宗": "#d0355f", "二筋樋貞宗": "#304878", "燭台切光忠": "#435b73", "大般若長光": "#771218",
-        "小龍景光": "#006591", "謙信景光": "#00469b", "小豆長光": "#6f1838", "福島光忠": "#313a65",
-        "実休光忠": "#644388", "後家兼光": "#D9919c", "安宅切": "#363545", "山姥切長義": "#a3b4d2",
-        
-        // 左文字 / 兼定 / 堀川
-        "江雪左文字": "#d7ebec", "宗三左文字": "#cb858d", "小夜左文字": "#2686ae", "太閤左文字": "#f6f4c4",
-        "歌仙兼定": "#644f6d", "和泉守兼定": "#8a272a", "人间无骨": "#a7a7c3", "山姥切国広": "#46677a",
-        "山伏国広": "#c2802c", "堀川国広": "#5bacc7",
-        
-        // 虎徹 / 江 / 正宗
+        "毛利藤四郎": "#a7c57f", "白山吉光": "#9cbfdf", "大包平": "#742b36", "鶯丸": "#748457", 
+        "八丁念佛": "#29479d", "古备前信房": "#BF7F1F", "明石国行": "#393a3c", "螢丸": "#a9c463", 
+        "愛染国俊": "#db4135", "面影": "#BB94C0", "千子村正": "#e3b6d3", "蜻蛉切": "#95397a", 
+        "物吉貞宗": "#e7a58b", "太鼓鐘貞宗": "#2967b0", "亀甲貞宗": "#d0355f", "二筋樋貞宗": "#304878", 
+        "燭台切光忠": "#435b73", "大般若長光": "#771218", "小龍景光": "#006591", "謙信景光": "#00469b", 
+        "小豆長光": "#6f1838", "福島光忠": "#313a65", "実休光忠": "#644388", "後家兼光": "#D9919c", 
+        "安宅切": "#363545", "山姥切長義": "#a3b4d2", "江雪左文字": "#d7ebec", "宗三左文字": "#cb858d", 
+        "小夜左文字": "#2686ae", "太閤左文字": "#f6f4c4", "歌仙兼定": "#644f6d", "和泉守兼定": "#8a272a", 
+        "人间无骨": "#a7a7c3", "山姥切国广": "#46677a", "山伏国广": "#c2802c", "堀川国广": "#5bacc7",
         "蜂須賀虎徹": "#bc84ab", "浦島虎徹": "#f49d00", "长曽祢虎彻": "#504f4b", "大俱利伽羅": "#94442b",
         "火車切": "#cf3b2d", "篭手切江": "#495e37", "豊前江": "#d0273d", "桑名江": "#f8b300",
         "松井江": "#0b80a3", "五月雨江": "#70549f", "村雲江": "#ef9098", "稻葉江": "#3c403f",
         "富田江": "#E7DCB0", "俱利伽羅江": "#8E8A89", "日向正宗": "#a31d3d", "石田正宗": "#d8e1ce",
-        "京極正宗": "#5f001e", "九鬼正宗": "#e7ebf4",
-        
-        // 一文字 / 行平 / 其它
-        "南泉一文字": "#f6ca81", "山鳥毛": "#b5bdc8", "日光一文字": "#5e3f85", "一文字則宗": "#da1c1e",
-        "姬鶴一文字": "#3c4451", "道誉一文字": "#631022", "古今傳授之太刀": "#f1cdc1", "地藏行平": "#517897",
-        "雲生": "#3FB9BE", "雲次": "#F18d01", "童子切安綱 剥落": "#BDBCBD", "加州清光": "#a73d51",
-        "大和守安定": "#4485c7", "陆奥守吉行": "#b14322", "髭切": "#e7dfb0", "膝丸": "#bbd6c3",
-        "壓切長谷部": "#584a6d", "不动行光": "#6f6798", "狮子王": "#c0ac4d", "小烏丸": "#cf111b",
-        "拔丸": "#c31c25", "同田貫正国": "#90817e", "鹤丸国永": "#d7d9d8", "太郎太刀": "#69367F",
-        "次郎太刀": "#404d60", "日本号": "#38394b", "御手杵": "#4b543f", "巴形薙刀": "#92cce0",
-        "静形薙刀": "#d52317", "千代金丸": "#00aec9", "祢祢切丸": "#7d2231", "南海太郎朝尊": "#283555",
-        "肥前忠広": "#5f1013", "北谷菜切": "#f391c3", "水心子正秀": "#a89fce", "源清麿": "#4b266b",
-        "治金丸": "#f9cd46", "大千鳥十文字槍": "#ab9997", "泛塵": "#ef9098", "七星劍": "#1c1b20",
-        "丙子椒林劍": "#7e7eba", "笹貫": "#396122", "孙六兼元": "#464147", "大慶直胤": "#4b3f81",
-        "三郎国宗": "#D61518"
+        "京極正宗": "#5f001e", "九鬼正宗": "#e7ebf4", "南泉一文字": "#f6ca81", "山鳥毛": "#b5bdc8", 
+        "日光一文字": "#5e3f85", "一文字則宗": "#da1c1e", "姬鶴一文字": "#3c4451", "道誉一文字": "#631022", 
+        "古今傳授之太刀": "#f1cdc1", "地藏行平": "#517897", "雲生": "#3FB9BE", "雲次": "#F18d01", 
+        "童子切安綱 剥落": "#BDBCBD", "加州清光": "#a73d51", "大和守安定": "#4485c7", "陆奥守吉行": "#b14322", 
+        "髭切": "#e7dfb0", "膝丸": "#bbd6c3", "壓切長谷部": "#584a6d", "不动行光": "#6f6798", 
+        "狮子王": "#c0ac4d", "小烏丸": "#cf111b", "拔丸": "#c31c25", "同田貫正国": "#90817e", 
+        "鹤丸国永": "#d7d9d8", "太郎太刀": "#69367F", "次郎太刀": "#404d60", "日本号": "#38394b", 
+        "御手杵": "#4b543f", "巴形薙刀": "#92cce0", "静形薙刀": "#d52317", "千代金丸": "#00aec9", 
+        "祢祢切丸": "#7d2231", "南海太郎朝尊": "#283555", "肥前忠広": "#5f1013", "北谷菜切": "#f391c3", 
+        "水心子正秀": "#a89fce", "源清麿": "#4b266b", "治金丸": "#f9cd46", "大千鳥十文字槍": "#ab9997", 
+        "泛塵": "#ef9098", "七星劍": "#1c1b20", "丙子椒林劍": "#7e7eba", "笹貫": "#396122", 
+        "孙六兼元": "#464147", "大慶直胤": "#4b3f81", "三郎国宗": "#D61518"
     };
 
     function getCardColor(name) { 
-        if (COLORS[name]) return COLORS[name];
-        // 自动计算兜底色逻辑...
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        return `hsl(${Math.abs(hash) % 360}, 45%, 40%)`;
+        return COLORS[name] || "#8d6e63";
     }
 
     const MOODS = [
@@ -230,12 +189,12 @@ const COLORS = {
     ];
 
     let historyData = JSON.parse(localStorage.getItem("touken_history_v1")) || {};
-    let savedChecked = JSON.parse(localStorage.getItem("touken_checked_v1")) || null;
+    let savedChecked = JSON.parse(localStorage.getItem("touken_checked_v1"));
 
-    // 初始化界面
     const nameContainer = document.getElementById('nameContainer');
     const collectionContainer = document.getElementById('collectionContainer');
 
+    // 渲染名单
     for (let type in data) {
         let det = document.createElement('details');
         let sum = document.createElement('summary'); sum.textContent = type;
@@ -256,7 +215,6 @@ const COLORS = {
         localStorage.setItem("touken_checked_v1", JSON.stringify(checked));
     }
 
-    // --- 抽签 ---
     const drawBtn = document.getElementById('drawBtn');
     const overlay = document.getElementById('modal-overlay');
     const resultCard = document.getElementById('result-card');
@@ -317,15 +275,16 @@ const COLORS = {
         grid.innerHTML = "";
         const now = new Date();
         const days = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-        const unlockedSet = new Set();
-        ['日','一','二','三','四','五','六'].forEach(d => grid.innerHTML += `<div class="calendar-header">${d}</div>`);
+        const unlockedSet = new Set(Object.values(historyData));
+
+        ['日','一','二','三','四','五','六'].forEach(d => grid.innerHTML += `<div style="text-align:center;font-weight:bold">${d}</div>`);
         for (let i = 1; i <= days; i++) {
             const dateKey = `${now.getFullYear()}-${now.getMonth()+1}-${i}`;
             const winner = historyData[dateKey];
-            if(winner) unlockedSet.add(winner);
             const color = getCardColor(winner);
             grid.innerHTML += `<div class="calendar-day">${winner ? `<div class="calendar-day-accent" style="background:${color}">${i}</div><b>${winner}</b>` : `<div>${i}</div>`}</div>`;
         }
+
         for (let type in data) {
             const g = document.getElementById(`coll-${type}`); g.innerHTML = "";
             data[type].forEach(name => {
