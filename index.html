@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+	<!-- Google tag (gtag.js) -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-HGK71745KN"></script>
+	<script>
+	  window.dataLayer = window.dataLayer || [];
+	  function gtag(){dataLayer.push(arguments);}
+	  gtag('js', new Date());
+
+	  gtag('config', 'G-HGK71745KN');
+	</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>本丸近侍日历 - 可编辑日历版</title>
+    <style>
+        :root {
+            --primary-red: #d32f2f;
+            --paper-bg: #fcfaf2;
+            --ink-black: #2c3e50;
+        }
+
+        body {
+            font-family: "楷体", "STKaiti", serif;
+            background-color: var(--paper-bg);
+            margin: 0; padding: 0;
+            color: var(--ink-black);
+            scroll-behavior: smooth;
+            transition: background-color 1.5s ease;
+        }
+
+        /* --- 抽签区 --- */
+        .draw-section {
+            height: 100vh;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            position: relative; text-align: center; padding: 0 20px; box-sizing: border-box;
+        }
+
+        #lotto-box {
+            width: 140px; height: 180px;
+            background: #8d6e63; border: 5px solid var(--ink-black);
+            border-radius: 10px 10px 60px 60px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 2rem;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .shaking { animation: shake 0.15s infinite; }
+        @keyframes shake {
+            0% { transform: rotate(0); }
+            25% { transform: rotate(-8deg) translate(-3px, -3px); }
+            75% { transform: rotate(8deg) translate(3px, -3px); }
+        }
+
+		/* 新增：立绘浮现动画 */
+		#box-overlay-portrait {
+			animation: portraitFadeIn 0.8s ease-out forwards;
+		}
+
+		@keyframes portraitFadeIn {
+			from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+			to { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+		}
+
+        #result-display {
+            font-size: 2.2rem; font-weight: bold; margin: 15px 0; min-height: 1.2em;
+            transition: 0.3s;
+        }
+
+        button#drawBtn {
+            padding: 15px 40px; font-size: 1.5rem;
+            font-family: "楷体", "STKaiti", serif;
+            background: var(--primary-red); color: white;
+            border: none; border-radius: 60px; cursor: pointer;
+            box-shadow: 0 6px rgba(0,0,0,0.25);
+            transition: 0.2s;
+        }
+        button#drawBtn:active { transform: translateY(4px); box-shadow: 0 2px rgba(0,0,0,0.2); }
+
+        /* --- 弹窗样式核心 (修正补充) --- */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); 
+            display: none; justify-content: center; align-items: center;
+            z-index: 10000; backdrop-filter: blur(8px);
+        }
+
+		#result-card {
+			position: relative; /* 新增：作为樱花的定位基准 */
+			overflow: hidden;   /* 新增：让超出边框的樱花消失 */
+			width: 85%; max-width: 400px;
+			background: #fff; border-radius: 30px;
+			padding: 40px 30px;
+			box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+			text-align: center; box-sizing: border-box;
+			animation: cardPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		}
+        @keyframes cardPop {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        #card-name { font-size: 2.5rem; font-weight: bold; color: white; margin-bottom: 20px; text-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
+        #card-portrait { width: 100%; max-height: 350px; object-fit: contain; margin-bottom: 20px; }
+        
+        .mood-btn-v5 { 
+            background: rgba(255,255,255,0.9); border: none; padding: 12px 25px; 
+            border-radius: 50px; cursor: pointer; font-size: 1.1rem; font-weight: bold; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%;
+        }
+
+        /* 樱花特效 */
+	.sakura { 
+				position: absolute; 
+				top: -30px; 
+				z-index: 5; 
+				pointer-events: none; 
+				animation: fall linear forwards; 
+				font-size: 20px;
+			}
+
+			@keyframes fall { 
+				to { transform: translateY(600px) rotate(360deg); } 
+			}
+
+        /* --- 管理区 --- */
+        .manage-section { min-height: 100vh; padding: 30px 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: white; border-top: 2px solid var(--ink-black); }
+        @media (max-width: 768px) { .manage-section { grid-template-columns: 1fr; } }
+        .panel { border: 2px solid #efebe9; border-radius: 15px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); background: white; }
+        
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .calendar-header { font-weight: bold; padding: 5px; background: #fafafa; text-align: center; font-size: 0.8rem; border-radius: 4px; }
+        .calendar-day { border: 1px solid #f5f5f5; padding: 0; min-height: 80px; font-size: 0.75rem; display: flex; flex-direction: column; align-items: center; position: relative; overflow: hidden; }
+        .calendar-day-accent { width: 100%; height: 24px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; margin-bottom: 4px; }
+        .day-number-empty { height: 24px; display: flex; align-items: center; justify-content: center; color: #ccc; }
+        .attendant-name { font-weight: bold; font-size: 0.95rem; padding: 2px; text-align: center; word-break: break-all; }
+
+        /* --- 图鉴区 --- */
+        .collection-section { min-height: 100vh; padding: 40px 15px; background-color: var(--paper-bg); border-top: 3px double var(--ink-black); }
+        .mvp-badge { display: inline-block; padding: 10px 25px; background: var(--ink-black); color: #f1c40f; border-radius: 50px; font-size: 1.2rem; margin-bottom: 10px; }
+		/* --- 图鉴卡册样式 --- */
+		.collection-grid { 
+			display: grid; 
+			grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); /* 缩小尺寸，更像卡册 */
+			gap: 12px; 
+			padding: 15px; 
+		}
+
+		.collection-item { 
+			aspect-ratio: 1 / 1; 
+			border-radius: 8px;
+			/* 关键修改：背景图对齐顶部，并保持比例 */
+			background-size: cover;
+			background-position: top center; 
+			background-repeat: no-repeat;
+			position: relative;
+			border: 1px solid #ddd;
+			filter: grayscale(100%) opacity(0.4);
+			transition: all 0.4s ease;
+			background-color: #eee; /* 加载前的底色 */
+		}
+
+		/* 已经加载图片的类 */
+		.collection-item.loaded {
+			/* 可以在这里加个淡入动画 */
+		}
+
+		.collection-item.unlocked { 
+			filter: grayscale(0%) opacity(1); /* 点亮时：恢复彩色 */
+			border-color: var(--primary-red);
+			box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+		}
+
+		/* 角色名字条：遮罩在图片底部 */
+		.collection-name {
+			position: absolute;
+			bottom: 0;
+			width: 100%;
+			background: rgba(0,0,0,0.6);
+			color: white;
+			font-size: 0.65rem;
+			padding: 2px 0;
+			text-align: center;
+		}
+
+		.collection-item.unlocked .collection-name {
+			background: rgba(211, 47, 47, 0.8); /* 点亮后名字背景变红 */
+		}
+
+        summary { padding: 12px; background: #fdfdfd; cursor: pointer; font-weight: bold; }
+        .name-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 8px; padding: 10px; }
+        .sync-panel { background: #f4f4f4; border: 2px dashed #ccc; text-align: center; grid-column: 1 / -1; }
+        .sync-input { width: 90%; max-width: 400px; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
+		
+		.calendar-day:hover {
+		background-color: #f0f0f0 !important;
+		border-color: var(--primary-black);
+		z-index: 10;
+			}
+    </style>
+</head>
+<body>
+
+<div class="draw-section">
+    <h1 style="font-size: 2.2rem; margin: 0 0 40px 0; letter-spacing: 4px;">本丸近侍抽选</h1>
+	
+	<div id="honmaru-status" style="margin-bottom: 30px;">
+        <span id="honmaru-weather" style="font-size: 1.1rem; color: #666; background: rgba(255,255,255,0.6); padding: 5px 15px; border-radius: 20px; border: 1px solid #eee;">
+            🌸 正在感应本丸气象...
+        </span>
+    </div>
+	
+    <div id="lotto-box">签筒</div>
+	
+	<div id="box-overlay-portrait" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -60%); pointer-events: none; z-index: 10;">
+		<img id="overlay-img" src="" style="width: 280px; filter: drop-shadow(0 0 15px rgba(211, 47, 47, 0.3));">
+	</div>
+    
+	<div id="result-display">准备唤起……</div>
+    <button id="drawBtn">起手摇签</button>
+    <div style="position: absolute; bottom: 30px; color: #aaa; font-size: 0.9rem; cursor: pointer;" onclick="document.getElementById('manage').scrollIntoView({behavior:'smooth'})">▽ 向下滚动管理名单 ▽</div>
+</div>
+
+<div style="margin-top: 15px; font-size: 0.9rem; color: var(--ink-black);">
+    <label style="cursor: pointer;">
+        <input type="checkbox" id="unlockSwitch" onchange="checkLockStatus()"> 🔓 重新抽选
+    </label>
+</div>
+
+<div style="margin-top: 10px; font-size: 1rem; color: var(--ink-black);">
+    📅 抽选日期：
+    <select id="targetDateSelect" onchange="checkLockStatus()" style="font-family: '楷体'; border: 1px solid #ccc; border-radius: 5px; padding: 2px 10px;">
+        <option value="today">今日</option>
+        <option value="tomorrow">明日</option>
+    </select>
+</div>
+
+<div id="modal-overlay" onclick="closeModal()">
+    <div id="result-card" onclick="event.stopPropagation()">
+        <div id="card-name"></div>
+        <img id="card-portrait" src="" alt="近侍立绘">
+        <button id="cardMoodBtn" class="mood-btn-v5">🎐 询问今日心情</button>
+        <div style="margin-top: 25px; color: rgba(255,255,255,0.7); font-size: 0.8rem;">点击空白处返回本丸</div>
+    </div>
+</div>
+
+<div class="manage-section" id="manage">
+    <div class="panel">
+        <h2>出阵名单</h2>
+        <div id="nameContainer"></div>
+    </div>
+    <div class="panel">
+		<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+			<button onclick="changeMonth(-1)" style="padding: 5px 10px; cursor: pointer;">上个月</button>
+			<h2 id="calendarTitle" style="margin: 0;">史书记录</h2>
+			<button onclick="changeMonth(1)" style="padding: 5px 10px; cursor: pointer;">下个月</button>
+		</div>
+		<div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+	
+	<div class="panel sync-panel" style="text-align: center;">
+		<h2>⛩️ GitHub Gist 云同步</h2>
+		<div style="display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin: 0 auto 15px auto;">
+			<div style="text-align: left; width: 320px;"> <label style="display:block; font-size: 0.85rem; color: #666; margin-bottom: 4px;">GitHub Token (密钥):</label>
+				<input type="password" id="gistToken" class="sync-input" placeholder="Token"
+					   style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+			</div>
+			
+			<div style="text-align: left; width: 320px;"> <label style="display:block; font-size: 0.85rem; color: #666; margin-bottom: 4px;">Gist ID (库ID):</label>
+				<input type="text" id="gistId" class="sync-input" placeholder="Gist ID"
+					   style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px;">
+			</div>			
+		</div>
+
+		<div style="margin-top: 10px;">
+			<button onclick="syncToGist()" style="padding: 10px 25px; background: #24292e; color:white; border:none; border-radius:5px; cursor:pointer;">上传到云端</button>
+			<button onclick="loadFromGist()" style="padding: 10px 25px; background: #28a745; color:white; border:none; border-radius:5px; margin-left:10px; cursor:pointer;">拉取云端</button>
+		</div>
+		
+		<div style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #ccc;">
+			<button onclick="clearLocalHistory()" style="font-size: 0.8rem; background: none; border: 1px solid #ccc; color: #999; padding: 5px 12px; border-radius: 20px; cursor: pointer;">
+				🧹 清空本地历史
+			</button>
+			<button onclick="toggleHelp()" style="margin-left: 15px; cursor:pointer; font-size:0.8rem; background: none; border: 1px solid #ccc; color: #999; padding: 5px 12px; border-radius: 20px; vertical-align:middle;">
+				❓ 帮助
+			</button>
+		</div>
+	</div>
+
+</div>
+
+
+
+<div id="help-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:20000; justify-content:center; align-items:center; color:white; padding:20px;">
+    <div style="background:#fff; color:#333; padding:25px; border-radius:15px; max-width:400px; width:90%; font-family:sans-serif; line-height:1.6; position:relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h3 style="margin-top:0; display:flex; align-items:center;">
+            <span style="margin-right:8px;">📖</span> 配置指南
+        </h3>
+
+	<div style="margin-bottom:20px; line-height: 1.6;">
+		<p style="font-weight:bold; margin: 0 0 5px 0; font-size: 1rem;">1. 准备 GitHub 账号</p>
+		<p style="font-size:0.85rem; color:#555; margin:0;">
+			前往 <a href="https://github.com/join" target="_blank" style="color:#2196F3; text-decoration: none;">github.com</a> 注册账号并登录。
+		</p>
+	</div>
+
+	<div style="margin-bottom:20px; line-height: 1.6;">
+		<p style="font-weight:bold; margin: 0 0 5px 0; font-size: 1rem;">2. 获取 Token (密钥)</p>
+		<p style="font-size:0.85rem; color:#555; margin:0;">
+			前往 <b>Settings</b> -> <b>Developer settings</b> -> <b>Tokens (classic)</b>。
+			生成时务必勾选 <code style="background:#fff3f3; padding:2px 4px; border:1px solid #ffcdd2; border-radius: 3px;">gist</code> 权限。
+			<br>
+			<span style="color:#e67e22; font-size: 0.8rem;">※ 提示：Token 仅显示一次，请务必先保存到记事本。</span>
+		</p>
+	</div>
+
+	<div style="margin-bottom:20px; line-height: 1.6;">
+		<p style="font-weight:bold; margin: 0 0 5px 0; font-size: 1rem;">3. 获取 Gist ID</p>
+		<p style="font-size:0.85rem; color:#555; margin:0;">
+			在 <a href="https://gist.github.com" target="_blank" style="color:#2196F3; text-decoration: none;">gist.github.com</a> 创建一个文件。
+			保存后，地址栏链接末尾的字母数字串即为 <b>ID</b>。
+		</p>
+	</div>
+			
+        <button onclick="toggleHelp()" style="width:100%; padding:12px; background:#d32f2f; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:1rem; transition: background 0.3s;">
+            我知道了
+        </button>
+    </div>
+</div>
+
+<div class="collection-section">
+    <div class="achievement-header" style="text-align: center;">
+        <div class="mvp-badge" id="monthMvp">本月近侍：🌸</div>
+        <h1 style="letter-spacing: 5px;">本月成就图鉴</h1>
+    </div>
+	<div class="view-toggle">
+		<span class="toggle-label">查看全收集</span>
+		<label class="switch">
+		  <input type="checkbox" id="progressToggle" onchange="renderEverything()">
+		  <span class="slider round"></span>
+		</label>
+	</div>
+    <div id="collectionContainer"></div>
+</div>
+
+<script>
+
+	function toggleHelp() {
+		const help = document.getElementById('help-overlay');
+		help.style.display = (help.style.display === 'none' || help.style.display === '') ? 'flex' : 'none';
+	}
+
+	// --- 新增：定义缺失的常量 ---
+	const STORAGE_HISTORY_KEY = "touken_history_v1";
+	const STORAGE_CHECK_KEY = "touken_checked_v1";
+	const STORAGE_GIST_TOKEN = "touken_gist_token";
+	const STORAGE_GIST_ID = "touken_gist_id";
+
+	// --- 修改：初始化时自动读取上次保存的 Token 和 ID ---
+	window.onload = function() {
+		document.getElementById('gistToken').value = localStorage.getItem(STORAGE_GIST_TOKEN) || "";
+		document.getElementById('gistId').value = localStorage.getItem(STORAGE_GIST_ID) || "";
+		renderEverything();
+	};
+	
+    const imgHost = "portraits/";
+    const data = {
+		  "短刀": ["今劍", "平野藤四郎", "厚藤四郎", "後藤藤四郎", "信濃藤四郎", "前田藤四郎", "秋田藤四郎", "博多藤四郎", "乱藤四郎", "五虎退", "藥研藤四郎", "包丁藤四郎", "愛染国俊", "太鼓鐘貞宗", "小夜左文字", "不動行光", "毛利藤四郎", "謙信景光", "日向正宗", "北谷菜切", "太閤左文字", "京極正宗", "九鬼正宗", "俱利伽羅江"],
+		  "脇差": ["笑面青江", "鯰尾藤四郎", "骨喰藤四郎", "物吉貞宗", "堀川国広", "浦島虎徹", "篭手切江", "肥前忠広", "治金丸", "泛塵", "火車切"],
+		  "打刀": ["鳴狐", "千子村正", "亀甲貞宗", "宗三左文字", "加州清光", "大和守安定", "歌仙兼定", "和泉守兼定", "陸奥守吉行", "山姥切国広", "蜂須賀虎徹", "長曽祢虎徹", "大俱利伽羅", "壓切長谷部", "同田貫正国", "南泉一文字", "山姥切長義", "豊前江", "南海太郎朝尊", "桑名江", "水心子正秀", "源清麿", "松井江", "地藏行平", "五月雨江", "村雲江", "稻葉江", "石田正宗", "孫六兼元", "後家兼光", "富田江", "大慶直胤", "安宅切", "二筋樋貞宗","雲重"],
+		  "太刀": ["童子切安綱 剥落", "三日月宗近", "小狐丸", "大典太光世", "騷速之劍", "数珠丸恒次", "鬼丸国綱", "一期一振", "大包平", "鶯丸", "明石国行", "燭台切光忠", "大般若長光", "小龍景光", "江雪左文字", "山伏国広", "髭切", "膝丸", "獅子王", "小烏丸", "鶴丸国永", "拔丸", "小豆長光", "千代金丸", "山鳥毛", "古今傳授之太刀", "日光一文字", "一文字則宗", "姬鶴一文字", "福島光忠", "笹貫", "八丁念佛", "実休光忠", "雲生", "道誉一文字", "雲次", "面影", "古備前信房", "三郎国宗"],
+		  "大太刀": ["石切丸", "螢丸", "太郎太刀", "次郎太刀", "祢祢切丸"],
+		  "薙刀": ["岩融", "巴形薙刀", "静形薙刀"],
+		  "枪": ["蜻蛉切", "日本号", "御手杵", "大千鳥十文字槍", "人間無骨"],
+		  "剑": ["白山吉光", "七星劍", "丙子椒林劍"]
+    };
+
+	const COLORS = {
+			"三日月宗近": "#274b85", "小狐丸": "#d6b214", "石切丸": "#789658", "岩融": "#74288a", "今劍": "#e94c5f",
+			"大典太光世": "#6b7386", "騷速之劍": "#f6ea86", "数珠丸恒次": "#474398", "笑面青江": "#61816a",
+			"鬼丸国綱": "#27314c", "鳴狐": "#fff3c1", "一期一振": "#72b6b5", "鯰尾藤四郎": "#5e3766",
+			"骨喰藤四郎": "#b6adbe", "平野藤四郎": "#7c6659", "厚藤四郎": "#b9b1af", "後藤藤四郎": "#a87059",
+			"信濃藤四郎": "#ab1f2a", "前田藤四郎": "#a99477", "秋田藤四郎": "#ef9499", "博多藤四郎": "#ca661b",
+			"乱藤四郎": "#ecba99", "五虎退": "#e8e0cd", "藥研藤四郎": "#8e6881", "包丁藤四郎": "#b5948f",
+			"毛利藤四郎": "#a7c57f", "白山吉光": "#9cbfdf", "大包平": "#742b36", "鶯丸": "#748457", 
+			"八丁念佛": "#29479d", "古備前信房": "#BF7F1F", "明石国行": "#393a3c", "螢丸": "#a9c463", 
+			"愛染国俊": "#db4135", "面影": "#BB94C0", "千子村正": "#e3b6d3", "蜻蛉切": "#95397a", 
+			"物吉貞宗": "#e7a58b", "太鼓鐘貞宗": "#2967b0", "亀甲貞宗": "#d0355f", "二筋樋貞宗": "#304878", 
+			"燭台切光忠": "#435b73", "大般若長光": "#771218", "小龍景光": "#006591", "謙信景光": "#00469b", 
+			"小豆長光": "#6f1838", "福島光忠": "#313a65", "実休光忠": "#644388", "後家兼光": "#D9919c", 
+			"安宅切": "#363545", "山姥切長義": "#a3b4d2", "江雪左文字": "#d7ebec", "宗三左文字": "#cb858d", 
+			"小夜左文字": "#2686ae", "太閤左文字": "#f6f4c4", "歌仙兼定": "#644f6d", "和泉守兼定": "#8a272a", 
+			"人間無骨": "#a7a7c3", "山姥切国広": "#46677a", "山伏国広": "#c2802c", "堀川国広": "#5bacc7",
+			"蜂須賀虎徹": "#bc84ab", "浦島虎徹": "#f49d00", "長曽祢虎徹": "#504f4b", "大俱利伽羅": "#94442b",
+			"火車切": "#cf3b2d", "篭手切江": "#495e37", "豊前江": "#d0273d", "桑名江": "#f8b300",
+			"松井江": "#0b80a3", "五月雨江": "#70549f", "村雲江": "#ef9098", "稻葉江": "#3c403f",
+			"富田江": "#E7DCB0", "俱利伽羅江": "#8E8A89", "日向正宗": "#a31d3d", "石田正宗": "#d8e1ce",
+			"京極正宗": "#5f001e", "九鬼正宗": "#e7ebf4", "南泉一文字": "#f6ca81", "山鳥毛": "#b5bdc8", 
+			"日光一文字": "#5e3f85", "一文字則宗": "#da1c1e", "姬鶴一文字": "#3c4451", "道誉一文字": "#631022", 
+			"古今傳授之太刀": "#f1cdc1", "地藏行平": "#517897", "雲生": "#3FB9BE", "雲次": "#F18d01", 
+			"童子切安綱 剥落": "#BDBCBD", "加州清光": "#a73d51", "大和守安定": "#4485c7", "陸奥守吉行": "#b14322", 
+			"髭切": "#e7dfb0", "膝丸": "#bbd6c3", "壓切長谷部": "#584a6d", "不動行光": "#6f6798", 
+			"獅子王": "#c0ac4d", "小烏丸": "#cf111b", "拔丸": "#c31c25", "同田貫正国": "#90817e", 
+			"鶴丸国永": "#d7d9d8", "太郎太刀": "#69367F", "次郎太刀": "#404d60", "日本号": "#38394b", 
+			"御手杵": "#4b543f", "巴形薙刀": "#92cce0", "静形薙刀": "#d52317", "千代金丸": "#00aec9", 
+			"祢祢切丸": "#7d2231", "南海太郎朝尊": "#283555", "肥前忠広": "#5f1013", "北谷菜切": "#f391c3", 
+			"水心子正秀": "#a89fce", "源清麿": "#4b266b", "治金丸": "#f9cd46", "大千鳥十文字槍": "#ab9997", 
+			"泛塵": "#ef9098", "七星劍": "#1c1b20", "丙子椒林劍": "#7e7eba", "笹貫": "#396122", 
+			"孫六兼元": "#464147", "大慶直胤": "#4b3f81", "三郎国宗": "#D61518","雲重":"#CF9FFF"
+		};
+
+    function getCardColor(name) { return COLORS[name] || "#8d6e63"; }
+
+    const BASE_MOODS = [
+        { text: "🌸 樱吹雪！身体轻盈，状态绝佳！", effect: "sakura" },
+        { text: "🍱 很有干劲呢！安排我去内番吧！", effect: "none" },
+        { text: "💤 稍微有点犯困，想午睡一会。", effect: "none" },
+        { text: "🗺️ 偶尔也想去远征看看外面的世界呢。", effect: "shake" }
+    ];
+	
+	const WEATHER_EXTRA = {
+		"Clear": ["☀️ 今天阳光明媚，适合出阵！", "☀️ 是个晒被子的好天气。","☀️ 阳光真好，适合把刀剑都拿出来保养呢。"],
+		"Rain": ["🌧️ 今天适合在檐廊下听雨喝茶呢。", "🌧️ 雨声让本丸变得很安静。", "🌧 狐之助看起来湿漉漉的呢。","🌧️ 看来今天不适合远征，不如留在屋里整理文书吧？","🌧️ 雨天路滑，巡视本丸时请千万小心。"],
+		"Clouds": ["☁️ 虽然没有太阳，但风很舒服。","☁️ 阴天啊，感觉本丸很安静。","☁️ 阳光被云遮住了，这种光线在廊下打盹最舒服不过。","☁️ 这样暗淡的天色，仿佛预示着有什么要发生呢。"],
+		"Snow": ["❄️ 庭院被染成了全白，真是纯净的景色。","❄️ 下雪了，请注意保暖。"]
+	};
+	
+	let currentCityWeather = "Default"; // 初始状态
+	
+		// 定义天气图标和翻译
+	const WEATHER_MAP = {
+		"Clear": "☀️ 晴朗",
+		"Rain": "🌧️ 雨天",
+		"Clouds": "☁️ 多云",
+		"Snow": "❄️ 落雪",
+	};
+
+	function updateHonmaruWeather() {
+		const weatherDisplay = document.getElementById('honmaru-weather');
+		const now = new Date();
+		const month = now.getMonth() + 1; // getMonth 0-11，所以要+1
+		const date = now.getDate();
+
+		// 1. 定义可选的天气池
+		let availableWeathers = ["Clear", "Rain", "Clouds"];
+
+		// 2. 季节逻辑：雪天只出现在 12.1 到 2.1
+		// 判断逻辑：如果是12月，或者1月，或者2月1日
+		const isWinter = (month === 12) || (month === 1) || (month === 2 && date === 15);
+		
+		if (isWinter) {
+			availableWeathers.push("Snow");
+		}
+
+		// 3. 每天随机一个固定天气 (利用日期作为随机种子，保证同一天内刷新页面天气不变)
+		// 如果你希望每次刷新都变，直接用 Math.random()
+		const seed = now.getFullYear() + month + date; 
+		const randomIndex = Math.floor(Math.abs(Math.sin(seed) * availableWeathers.length));
+		currentCityWeather = availableWeathers[randomIndex];
+
+		// 4. 更新显示
+		const weatherText = WEATHER_MAP[currentCityWeather];
+		weatherDisplay.innerText = `本丸气象：${weatherText}`;
+		
+		console.log(`今日季节感应：${isWinter ? "冬季限定开启" : "常规时节"}, 抽取天气：${currentCityWeather}`);
+	}
+
+	function getMood(winner) {
+		let finalMood;
+		const weatherPool = WEATHER_EXTRA[currentCityWeather];
+		const hasWeather = weatherPool && weatherPool.length > 0;
+
+		// 概率控制：50% 概率触发天气对话
+		if (hasWeather && Math.random() < 0.5) {
+			const randomTxt = weatherPool[Math.floor(Math.random() * weatherPool.length)];
+			finalMood = { text: randomTxt, effect: "none" };
+		} else {
+			// 确保这里使用的是 BASE_MOODS
+			finalMood = BASE_MOODS[Math.floor(Math.random() * BASE_MOODS.length)];
+		}
+
+		// 更新按钮文字
+		const moodBtn = document.getElementById('cardMoodBtn');
+		moodBtn.innerText = finalMood.text;
+
+		// 执行特效
+		if (finalMood.effect === "sakura") createSakura();
+		if (finalMood.effect === "shake") {
+			const card = document.getElementById('result-card');
+			card.classList.add('shaking');
+			setTimeout(() => card.classList.remove('shaking'), 500);
+		}
+	}
+	
+	
+	
+    let historyData = JSON.parse(localStorage.getItem("touken_history_v1")) || {};
+	let viewDate = new Date(); // 用于记录当前日历显示的月份		
+    let savedChecked = JSON.parse(localStorage.getItem("touken_checked_v1")) || null;
+
+    // 初始化界面
+    const nameContainer = document.getElementById('nameContainer');
+    const collectionContainer = document.getElementById('collectionContainer');
+
+    for (let type in data) {
+        let det = document.createElement('details');
+        let sum = document.createElement('summary'); sum.textContent = type;
+        let grid = document.createElement('div'); grid.className = 'name-grid';
+        data[type].forEach(name => {
+            let isChecked = savedChecked ? savedChecked.includes(name) : true;
+            grid.innerHTML += `<label><input type="checkbox" class="name-cb" value="${name}" ${isChecked ? 'checked' : ''} onchange="saveSelection()"> ${name}</label>`;
+        });
+        det.append(sum, grid); nameContainer.append(det);
+
+        let collDet = document.createElement('details'); collDet.open = true;
+        let collSum = document.createElement('summary'); collSum.textContent = type;
+        let collGrid = document.createElement('div'); collGrid.className = 'collection-grid'; collGrid.id = `coll-${type}`;
+        collDet.append(collSum, collGrid); collectionContainer.append(collDet);
+    }
+
+    function saveSelection() {
+        const checked = Array.from(document.querySelectorAll('.name-cb:checked')).map(cb => cb.value);
+        localStorage.setItem("touken_checked_v1", JSON.stringify(checked));
+    }
+
+    const drawBtn = document.getElementById('drawBtn');
+    const overlay = document.getElementById('modal-overlay');
+    const resultDisplay = document.getElementById('result-display');
+
+	drawBtn.onclick = function() {
+		// --- 新增：点击抽签时，先隐藏掉之前的覆盖立绘 ---
+		document.getElementById('box-overlay-portrait').style.display = 'none';
+	
+		const d = new Date();
+		// --- 新增：判断是否是抽明天的 ---
+		if (document.getElementById('targetDateSelect').value === 'tomorrow') {
+			d.setDate(d.getDate() + 1);
+		}
+		
+		const targetKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+		const dateLabel = document.getElementById('targetDateSelect').value === 'tomorrow' ? "明日" : "今日";
+		const isUnlocked = document.getElementById('unlockSwitch').checked;
+
+		// --- 逻辑：锁定判断 (使用 targetKey) ---
+		if (historyData[targetKey] && !isUnlocked) {
+			alert(`${dateLabel}近侍已在史书中记载。若要重新抽选，请勾选“解除锁定”。`);
+			return;
+		}
+
+		const pool = Array.from(document.querySelectorAll('.name-cb:checked')).map(cb => cb.value);
+		if (pool.length === 0) return alert("名单为空！");
+		
+		drawBtn.disabled = true;
+		resultDisplay.innerText = `正在感应${dateLabel}的缘分...`;
+		document.getElementById('lotto-box').classList.add('shaking');
+
+		setTimeout(() => {
+			document.getElementById('lotto-box').classList.remove('shaking');
+			const winner = pool[Math.floor(Math.random() * pool.length)];
+			
+			// --- 新增：更新并显示签筒上方的立绘 ---
+			const overlayBox = document.getElementById('box-overlay-portrait');
+			const overlayImg = document.getElementById('overlay-img');
+			overlayImg.src = imgHost + winner + ".png";
+			overlayBox.style.display = 'block';
+			// --------------------------------------
+			
+			const color = getCardColor(winner);
+
+			document.getElementById('card-name').innerText = winner;
+			document.getElementById('card-portrait').src = imgHost + winner + ".png";
+			document.getElementById('result-card').style.backgroundColor = color;
+			
+			document.getElementById('cardMoodBtn').innerText = `🎐 询问心情`; // 这里的文案也改一下
+			document.getElementById('cardMoodBtn').onclick = () => getMood(winner);
+
+			overlay.style.backgroundColor = color + "4D"; 
+			overlay.style.display = 'flex';
+			document.body.style.backgroundColor = color + "1a";
+			resultDisplay.innerText = `${dateLabel}近侍：` + winner; // 明确显示日期
+			resultDisplay.style.color = color;
+
+			// --- 历史保存 (使用 targetKey) ---
+			historyData[targetKey] = winner;
+			localStorage.setItem("touken_history_v1", JSON.stringify(historyData));
+			
+			renderEverything();
+			checkLockStatus(); 
+		}, 1200);
+	};
+	
+	function checkLockStatus() {
+		const d = new Date();
+		// 同样加入日期判断
+		if (document.getElementById('targetDateSelect').value === 'tomorrow') {
+			d.setDate(d.getDate() + 1);
+		}
+		const targetKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+		const drawBtn = document.getElementById('drawBtn');
+		const unlockSwitch = document.getElementById('unlockSwitch');
+
+		if (historyData[targetKey] && !unlockSwitch.checked) {
+			drawBtn.disabled = true;
+			drawBtn.innerText = "该日近侍已记录";
+			drawBtn.style.opacity = "0.5";
+		} else {
+			drawBtn.disabled = false;
+			drawBtn.innerText = historyData[targetKey] ? "重新抽选" : "起手摇签";
+			drawBtn.style.opacity = "1";
+		}
+	}
+	
+	window.onload = function() {
+        document.getElementById('gistToken').value = localStorage.getItem(STORAGE_GIST_TOKEN) || "";
+        document.getElementById('gistId').value = localStorage.getItem(STORAGE_GIST_ID) || "";
+        renderEverything();
+        checkLockStatus(); // 这里是关键，让页面一打开就执行锁定检查
+			// 启动天气感应 (关键！)
+		updateHonmaruWeather();
+    };
+	
+    function closeModal() { overlay.style.display = 'none'; }
+
+
+    function createSakura() {
+		const card = document.getElementById('result-card'); // 获取弹窗容器
+        for (let i = 0; i < 25; i++) {
+            const s = document.createElement('div');
+            s.className = 'sakura'; s.innerHTML = '🌸';
+            s.style.left = Math.random() * 100 + 'vw';
+            s.style.animationDuration = (Math.random() * 3 + 2) + 's';
+			s.style.opacity = Math.random();
+            document.body.appendChild(s);
+			
+			card.appendChild(s); // 关键：塞进弹窗里
+			
+            setTimeout(() => s.remove(), 5000);
+        }
+    }
+
+	function renderEverything() {
+		const grid = document.getElementById('calendarGrid');
+		grid.innerHTML = "";
+		
+		const curYear = viewDate.getFullYear();
+		const curMonth = viewDate.getMonth() + 1;
+		
+		document.getElementById('calendarTitle').innerText = `${curYear}年${curMonth}月`;
+
+		const firstDayIndex = new Date(curYear, curMonth - 1, 1).getDay();
+		const daysInMonth = new Date(curYear, curMonth, 0).getDate();
+		
+		const monthCounts = {};
+		const monthUnlocked = new Set(); // 这里会记录当前月份出现的近侍
+		const allTimeUnlocked = new Set(); // 历史全记录集合
+
+		// 遍历所有历史数据（不分月份）
+		Object.values(historyData).forEach(name => {
+			allTimeUnlocked.add(name);
+		});
+
+			// 渲染星期表头
+			['日','一','二','三','四','五','六'].forEach(d => grid.innerHTML += `<div class="calendar-header">${d}</div>`);
+
+			// 渲染月初留白
+			for (let x = 0; x < firstDayIndex; x++) {
+				grid.innerHTML += `<div class="calendar-day" style="background:transparent; border:none;"></div>`;
+			}
+
+			// 渲染日期
+				for (let i = 1; i <= daysInMonth; i++) {
+					const dateKey = `${curYear}-${curMonth}-${i}`;
+					const winner = historyData[dateKey];
+					const color = COLORS[winner] || "transparent";
+					
+					if(winner) { 
+						monthCounts[winner] = (monthCounts[winner] || 0) + 1; 
+						monthUnlocked.add(winner); // 只有出现在当前月的近侍会被加入这个集合
+					}
+				
+				// 创建日期 DOM
+				const dayEl = document.createElement('div');
+				dayEl.className = 'calendar-day';
+				dayEl.style.backgroundColor = winner ? color + '10' : 'white';
+				dayEl.style.cursor = 'pointer'; // 增加点击手型
+				dayEl.title = "点击编辑此日记录";
+				
+				dayEl.innerHTML = `
+					${winner ? `<div class="calendar-day-accent" style="background-color: ${color}">${i}</div>` : `<div class="day-number-empty">${i}</div>`}
+					${winner ? `<span class="attendant-name">${winner}</span>` : ""}
+				`;
+
+				// --- 新增：点击编辑功能 ---
+				dayEl.onclick = () => {
+					const currentName = historyData[dateKey] || "";
+					const newName = prompt(`编辑 ${curMonth}月${i}日 的近侍名字：\n(留空则删除该记录)`, currentName);
+					
+					if (newName !== null) { // 用户没点取消
+						const trimmedName = newName.trim();
+						if (trimmedName === "") {
+							delete historyData[dateKey];
+						} else {
+							historyData[dateKey] = trimmedName;
+						}
+						// 保存并刷新
+						localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(historyData));
+						renderEverything();
+					}
+				};
+
+				grid.appendChild(dayEl);
+			}
+			
+			const isShowAll = document.getElementById('progressToggle').checked;
+			updateMvp(monthCounts);
+			updateCollection(isShowAll ? allTimeUnlocked : monthUnlocked);
+		}
+
+    function updateMvp(counts) {
+        const entries = Object.entries(counts);
+        if (entries.length === 0) { document.getElementById('monthMvp').innerText = "本月近侍：🌸"; return; }
+        const max = Math.max(...Object.values(counts));
+        const mvps = entries.filter(e => e[1] === max && max > 1);
+        document.getElementById('monthMvp').innerText = mvps.length > 0 ? `本月近侍：${mvps.map(e => e[0]).join('、')}` : "本月近侍：🌸";
+    }
+
+	// 1. 修改渲染函数
+	function updateCollection(unlockedSet) {
+		for (let type in data) {
+			const grid = document.getElementById(`coll-${type}`);
+			grid.innerHTML = "";
+			data[type].forEach(name => {
+				const isUnlocked = unlockedSet.has(name);
+				const imgPath = imgHost + name + ".png"; 
+				
+				// 使用 data-src 存储路径，不直接加载
+				grid.innerHTML += `
+					<div class="collection-item ${isUnlocked ? 'unlocked' : ''}" 
+						 data-src="${imgPath}">
+						<div class="collection-name">${name}</div>
+					</div>`;
+			});
+		}
+		// 渲染完 DOM 后，启动懒加载监听
+		initLazyLoad();
+	}
+
+	// 2. 懒加载核心逻辑
+	function initLazyLoad() {
+		const items = document.querySelectorAll('.collection-item[data-src]');
+		
+		const observer = new IntersectionObserver((entries, observer) => {
+			entries.forEach(entry => {
+				if (entry.isIntersecting) {
+					const item = entry.target;
+					const src = item.getAttribute('data-src');
+					
+					// 创建一个预加载对象，确保图片加载完再显示，避免闪烁
+					const tempImg = new Image();
+					tempImg.src = src;
+					tempImg.onload = () => {
+						item.style.backgroundImage = `url('${src}')`;
+						item.classList.add('loaded');
+					};
+					
+					// 加载后停止观察
+					observer.unobserve(item);
+				}
+			});
+		}, {
+			rootMargin: '100px' // 提前 100px 开始加载，用户滚动时更流畅
+		});
+
+		items.forEach(item => observer.observe(item));
+	}
+
+
+	// --- 同步逻辑优化 ---
+	function saveGistCredentials(t, i) {
+		localStorage.setItem(STORAGE_GIST_TOKEN, t);
+		localStorage.setItem(STORAGE_GIST_ID, i);
+	}
+
+	async function syncToGist() {
+		const t = document.getElementById('gistToken').value;
+		const i = document.getElementById('gistId').value;
+		if (!t || !i) return alert("配置缺失");
+
+		saveGistCredentials(t, i);
+
+		const payload = {
+			files: {
+				"touken_data.json": {
+					content: JSON.stringify({
+						checked: localStorage.getItem(STORAGE_CHECK_KEY),
+						history: localStorage.getItem(STORAGE_HISTORY_KEY)
+					})
+				}
+			}
+		};
+
+		try {
+			const res = await fetch(`https://api.github.com/gists/${i}`, {
+				method: 'PATCH',
+				headers: {
+					'Authorization': `token ${t}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+			if (res.ok) alert("🎉 已成功同步至 GitHub 云端");
+			else alert("同步失败：请检查 Token 权限或 ID");
+		} catch (err) {
+			alert("网络请求失败");
+		}
+	}
+
+	async function loadFromGist() {
+		const t = document.getElementById('gistToken').value;
+		const i = document.getElementById('gistId').value;
+		if (!t || !i) return alert("配置缺失");
+
+		saveGistCredentials(t, i);
+
+		try {
+			const res = await fetch(`https://api.github.com/gists/${i}`, {
+				headers: { 'Authorization': `token ${t}` }
+			});
+			if (res.ok) {
+				const g = await res.json();
+				if (!g.files["touken_data.json"]) return alert("云端无备份文件");
+
+				const c = JSON.parse(g.files["touken_data.json"].content);
+				// 写入本地
+				localStorage.setItem(STORAGE_CHECK_KEY, c.checked);
+				localStorage.setItem(STORAGE_HISTORY_KEY, c.history);
+				alert("同步成功，即将刷新页面");
+				location.reload();
+			} else {
+				alert("加载失败");
+			}
+		} catch (err) {
+			alert("网络请求失败");
+		}
+	}
+
+	// 修正：确保函数独立，没有多余的 }
+	function changeMonth(step) {
+		viewDate.setMonth(viewDate.getMonth() + step);
+		renderEverything();
+	}
+
+	function clearLocalHistory() {
+		const doubleCheck = confirm("确定要清空所有本地历史记录吗？");
+		if (doubleCheck) {
+			localStorage.removeItem(STORAGE_HISTORY_KEY);
+			alert("本地历史已清空");
+			location.reload();
+		}
+	}
+
+</script>
+</body>
+</html>
