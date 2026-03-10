@@ -54,16 +54,6 @@
             75% { transform: rotate(8deg) translate(3px, -3px); }
         }
 
-		/* 新增：立绘浮现动画 */
-		#box-overlay-portrait {
-			animation: portraitFadeIn 0.8s ease-out forwards;
-		}
-
-		@keyframes portraitFadeIn {
-			from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-			to { opacity: 1; transform: translate(-50%, -60%) scale(1); }
-		}
-
         #result-display {
             font-size: 2.2rem; font-weight: bold; margin: 15px 0; min-height: 1.2em;
             transition: 0.3s;
@@ -204,6 +194,9 @@
 <body>
 
 <div class="draw-section">
+	<div id="today-attendant-banner" style="min-height: 200px; margin-bottom: 10px; display: flex; align-items: flex-end; justify-content: center;">
+			<img id="banner-portrait" src="" style="max-height: 250px; display: none; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));">
+	</div>
     <h1 style="font-size: 2.2rem; margin: 0 0 40px 0; letter-spacing: 4px;">本丸近侍抽选</h1>
 	
 	<div id="honmaru-status" style="margin-bottom: 30px;">
@@ -213,12 +206,7 @@
     </div>
 	
     <div id="lotto-box">签筒</div>
-	
-	<div id="box-overlay-portrait" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -60%); pointer-events: none; z-index: 10;">
-		<img id="overlay-img" src="" style="width: 280px; filter: drop-shadow(0 0 15px rgba(211, 47, 47, 0.3));">
-	</div>
-    
-	<div id="result-display">准备唤起……</div>
+    <div id="result-display">准备唤起……</div>
     <button id="drawBtn">起手摇签</button>
     <div style="position: absolute; bottom: 30px; color: #aaa; font-size: 0.9rem; cursor: pointer;" onclick="document.getElementById('manage').scrollIntoView({behavior:'smooth'})">▽ 向下滚动管理名单 ▽</div>
 </div>
@@ -494,7 +482,16 @@
 		}
 	}
 	
-	
+		// 新增：专门负责更新标题上方立绘的函数
+	function updateBanner(name) {
+		const bannerImg = document.getElementById('banner-portrait');
+		if (name) {
+			bannerImg.src = imgHost + name + ".png";
+			bannerImg.style.display = "block";
+		} else {
+			bannerImg.style.display = "none";
+		}
+	}
 	
     let historyData = JSON.parse(localStorage.getItem("touken_history_v1")) || {};
 	let viewDate = new Date(); // 用于记录当前日历显示的月份		
@@ -530,9 +527,6 @@
     const resultDisplay = document.getElementById('result-display');
 
 	drawBtn.onclick = function() {
-		// --- 新增：点击抽签时，先隐藏掉之前的覆盖立绘 ---
-		document.getElementById('box-overlay-portrait').style.display = 'none';
-	
 		const d = new Date();
 		// --- 新增：判断是否是抽明天的 ---
 		if (document.getElementById('targetDateSelect').value === 'tomorrow') {
@@ -559,14 +553,7 @@
 		setTimeout(() => {
 			document.getElementById('lotto-box').classList.remove('shaking');
 			const winner = pool[Math.floor(Math.random() * pool.length)];
-			
-			// --- 新增：更新并显示签筒上方的立绘 ---
-			const overlayBox = document.getElementById('box-overlay-portrait');
-			const overlayImg = document.getElementById('overlay-img');
-			overlayImg.src = imgHost + winner + ".png";
-			overlayBox.style.display = 'block';
-			// --------------------------------------
-			
+			updateBanner(winner);
 			const color = getCardColor(winner);
 
 			document.getElementById('card-name').innerText = winner;
@@ -615,7 +602,16 @@
 	window.onload = function() {
         document.getElementById('gistToken').value = localStorage.getItem(STORAGE_GIST_TOKEN) || "";
         document.getElementById('gistId').value = localStorage.getItem(STORAGE_GIST_ID) || "";
-        renderEverything();
+        
+		// --- 新增：检查今日是否有记录并还原立绘 ---
+		const d = new Date();
+		const todayKey = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+		if (historyData[todayKey]) {
+			updateBanner(historyData[todayKey]);
+		}
+		// --------------------------------------
+		
+		renderEverything();
         checkLockStatus(); // 这里是关键，让页面一打开就执行锁定检查
 			// 启动天气感应 (关键！)
 		updateHonmaruWeather();
